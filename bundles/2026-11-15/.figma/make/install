@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ -f pnpm-lock.yaml ]]; then
+  corepack pnpm install --frozen-lockfile
+else
+  npm install --no-audit --no-fund
+fi
