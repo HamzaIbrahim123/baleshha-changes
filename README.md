@@ -1,40 +1,35 @@
-# بلّشها — Baleshha Changes
+# بلّشها — النسخة المجمّعة الحديثة
 
-**كل تعديل في فولدر مستقل ظاهر في الصفحة الرئيسية.** This repo contains numbered change folders (not one merged project at the root).
+هذا المستودع يحتوي **نسخة واحدة كاملة** من ملفات بلّشها، بدون مجلدات Bundle أو نسخ مكرّرة من الملفات.
 
-| Folder | What's inside |
-|---|---|
-| [Bundle 1](Bundle%201/) | Frontend: React/Vite website, Figma Make scripts, four game visuals |
-| [Bundle 2](Bundle%202/) | Initial Neon database draft |
-| [Bundle 3](Bundle%203/) | Node.js/Express/TypeScript backend, migrations, tests, ZIP |
-| [Bundle 4](Bundle%204/) | Repository organization change and earlier notes |
+## محتويات المشروع
 
-Each Bundle folder keeps files under their **original relative path** so the changed files can be copied into a project without guessing where they go.
+- `src/`, `public/`, `index.html`, `package.json`: واجهة React + TypeScript وألعاب العرض التجريبي، من النسخة الأصلية `baleshha-main.zip`.
+- `.figma/make/`, `vite.config.ts`, `pnpm-lock.yaml`: **إعدادات Figma Make الأصلية** محفوظة، ولم نستبدلها بإعدادات Vite تجريبية.
+- `backend/`: أحدث نسخة واحدة من Backend ‏Node.js + Express + TypeScript، مع API، تسجيل دخول، اختبارات، وملفات Neon SQL.
+- `backend/migrations/001_initial_schema.sql` و`002_backend_support.sql`: النسخة المعتمدة من ملفات إعداد قاعدة البيانات. حُذفت مسودة SQL الأقدم لتجنب تطبيق نسختين مختلفتين.
 
-Example:
-```text
-Bundle 1/
-  src/App.tsx
-  src/data.ts
-  public/art/seen-jeem.webp
-  package.json
+## استخدام المشروع داخل Figma Make
 
-Bundle 2/
-  database/drafts/001_neon_schema_draft.sql
+استورد **مجلد المشروع كاملًا من الجذر** (أو ملف ZIP المجمّع). لا تنقل ملفات من Bundles قديمة. حافظ على مسارات `src/` و`public/` و`.figma/make/` وعلى ملف `vite.config.ts` الأصلي.
 
-Bundle 3/
-  backend/src/routes.ts
-  backend/migrations/001_initial_schema.sql
+**مهم:** Figma Make يشغّل واجهة React، وليس خادم Express بمجرد نسخ مجلد `backend/`. يحتاج الـBackend إلى تشغيل/استضافة منفصلة ومتغير `DATABASE_URL` سري على الخادم وربط الـFrontend بالـAPI. الواجهة لا تزال تستخدم بيانات وأسئلة تجريبية محلية وليست موصولة بالـBackend، ولم تُطبَّق ترحيلات Neon بعد. لن نضيف بنك الأسئلة الحقيقي إلا عند موافقتك.
 
-Bundle 4/
-  README.md
+## تشغيل محلي
+
+```bash
+# واجهة React
+npm install
+npm run dev
+
+# الخادم (في طرفية ثانية، بعد إعداد backend/.env سرًّا)
+cd backend
+npm install
+npm run dev
 ```
 
-## From now on
-- Every new set of changes gets a **NEW root folder**: `Bundle 5/`, `Bundle 6/`, and so on.
-- Put **only added or changed files** inside that folder using their real intended project paths. Add `README.md` in the same folder documenting changed paths and how to apply them.
-- **Do not** create another `bundles/` wrapper or scatter `BUNDLE_XX.md` documents at the root.
-- Upload to **this changes repository only**; the original [baleshha](https://github.com/HamzaIbrahim123/baleshha) repository remains unchanged unless explicitly requested.
-- Do not include credentials. Current frontend uses local demo data; backend and Neon migration are not yet deployed or integrated. Questions will be provided later.
+اقرأ `backend/README.md` قبل تنفيذ الترحيلات أو تشغيل الخادم. لا ترفع كلمات مرور أو روابط اتصال Neon إلى GitHub أو إلى كود المتصفح.
 
-[Approved Figma designs](https://www.figma.com/design/F8QbCCsYhe27xaDWFygUlK/Untitled?node-id=127-140)
+**هذا المستودع للنسخة المجمّعة والتعديلات. لم نعدّل مستودع `HamzaIbrahim123/baleshha` الأصلي.**
+
+مصدر التصميم: https://www.figma.com/design/F8QbCCsYhe27xaDWFygUlK/Untitled?node-id=127-140

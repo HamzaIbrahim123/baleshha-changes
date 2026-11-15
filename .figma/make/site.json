@@ -1,0 +1,12 @@
+{
+  "title": "بلشها",
+  "description": "Provides a clean white page for a simple, distraction-free viewing or starting point.",
+  "language": "ar",
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": true
+  },
+  "robots": {
+    "index": true
+  }
+}

@@ -1,5 +1,0 @@
-* text=auto
-.figma/make/* text eol=lf
-*.png binary
-*.jpg binary
-*.webp binary
