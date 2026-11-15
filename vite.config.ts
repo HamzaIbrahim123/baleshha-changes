@@ -33,6 +33,14 @@ react(),
       },
     },
     server: {
+      // Development-only same-origin proxy to the separately hosted Express backend.
+      // Production hosting must forward /api to the backend over HTTPS too.
+      proxy: {
+        '/api': {
+          target: process.env.BALESHHA_API_PROXY_TARGET || 'http://localhost:4000',
+          changeOrigin: true,
+        },
+      },
       host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
       port: parseInt(process.env.PORT || '8443'),
       strictPort: true,

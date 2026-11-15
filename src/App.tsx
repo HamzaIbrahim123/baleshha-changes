@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode, type FormEvent, type CSSProperties } from 'react';
 import { CATEGORIES, GAMES, HELP_NAMES, QUESTIONS, type Category, type Help, type Level, type Question } from './data';
+import { apiAuth, type ApiUser, ApiRequestError } from './api';
 
 type Page = 'home' | 'details' | 'auth' | 'setup' | 'teams' | 'board' | 'question' | 'reveal' | 'result';
-type Account = { username: string; name: string; salt: string; digest: string };
+type Account = { username: string; name: string };
 type Team = { name: string; helps: Help[]; used: Help[] };
 type Match = { id: string; categoryIds: string[]; teams: [Team,Team]; scores: [number,number]; turn: 0|1; asked: string[]; active?: string; activeHelp?: Help; finished?: boolean };
-const STORE = { accounts: 'baleshha-demo-accounts', session: 'baleshha-demo-session', match: 'baleshha-match:', seen: 'baleshha-seen:' };
+const STORE = { match: 'baleshha-match:', seen: 'baleshha-seen:' };
 const load = <T,>(key: string, fallback: T): T => { try { const raw=localStorage.getItem(key); return raw?JSON.parse(raw) as T:fallback; } catch { return fallback; } };
 function Icon({name,size=20}: {name:string;size?:number}) {
   const properties={width:size,height:size,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.9,strokeLinecap:'round' as const,strokeLinejoin:'round' as const};
@@ -43,12 +44,6 @@ const HELP_DESCRIPTIONS:Record<Help,string>={
   'استريح':'اختار لاعبًا من الفريق الآخر حتى لا يشارك بالإجابة.',
   'الفخ':'حوّل السؤال للفريق الثاني؛ إذا أخطأ، تُخصم منه نقاط السؤال.'
 };
-async function digestPassword(password:string,salt:string) {
-  const encoded=new TextEncoder();
-  const key=await crypto.subtle.importKey('raw',encoded.encode(password),'PBKDF2',false,['deriveBits']);
-  const hash=await crypto.subtle.deriveBits({name:'PBKDF2',salt:encoded.encode(salt),iterations:130000,hash:'SHA-256'},key,256);
-  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
 const makeId=()=>globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random()}`;
 function availableGames(categoryId:string,used:string[]){const counts=([200,400,600] as Level[]).map(level=>QUESTIONS.filter(q=>q.categoryId===categoryId&&q.level===level&&!used.includes(q.id)).length);return Math.min(...counts.map(c=>Math.floor(c/2)));}
 function AppButton({children,onClick,variant='primary',disabled=false,className='',type='button'}:{children:ReactNode;onClick?:()=>void;variant?:'primary'|'outline'|'ghost'|'danger';disabled?:boolean;className?:string;type?:'button'|'submit'}){return <button type={type} onClick={onClick} disabled={disabled} className={`btn btn-${variant} ${className}`}>{children}</button>}
@@ -56,8 +51,9 @@ function AppButton({children,onClick,variant='primary',disabled=false,className=
 function App(){
   const [page,setPage]=useState<Page>('home');
   const [heroIndex,setHeroIndex]=useState(0);
-  const [accounts,setAccounts]=useState<Account[]>(()=>load(STORE.accounts,[]));
-  const [username,setUsername]=useState<string>(()=>load(STORE.session,''));
+  const [currentAccount,setCurrentAccount]=useState<Account|null>(null);
+  const [username,setUsername]=useState<string>('');
+  const [authPending,setAuthPending]=useState(false);
   const [authMode,setAuthMode]=useState<'login'|'register'>('login');
   const [authReturn,setAuthReturn]=useState<Page>('details');
   const [authError,setAuthError]=useState('');
@@ -73,11 +69,19 @@ function App(){
   const [helpNote,setHelpNote]=useState<Help>('الحفرة');
   const [warning,setWarning]=useState('');
   const [used,setUsed]=useState<string[]>([]);
-  const account=accounts.find(a=>a.username===username);
+  const account=currentAccount;
 
   useEffect(()=>{const timer=setInterval(()=>setHeroIndex(x=>(x+1)%GAMES.length),5200);return()=>clearInterval(timer)},[]);
-  useEffect(()=>{localStorage.setItem(STORE.accounts,JSON.stringify(accounts))},[accounts]);
-  useEffect(()=>{localStorage.setItem(STORE.session,JSON.stringify(username));setUsed(username?load(STORE.seen+username,[]):[]);setMatch(username?load(STORE.match+username,null):null)},[username]);
+  useEffect(()=>{
+    let active=true;
+    apiAuth.me().then(({user})=>{
+      if(!active)return;
+      setCurrentAccount(user?{username:user.username,name:user.displayName}:null);
+      setUsername(user?.username ?? '');
+    }).catch(()=>{if(active)setAuthError('تعذّر الاتصال بخادم الحسابات. جرّب مجددًا عند تشغيل الـBackend.')});
+    return()=>{active=false};
+  },[]);
+  useEffect(()=>{setUsed(username?load(STORE.seen+username,[]):[]);setMatch(username?load(STORE.match+username,null):null)},[username]);
   useEffect(()=>{if(username)localStorage.setItem(STORE.seen+username,JSON.stringify(used))},[used,username]);
   useEffect(()=>{if(username)localStorage.setItem(STORE.match+username,JSON.stringify(match))},[match,username]);
 
@@ -88,19 +92,41 @@ function App(){
 
   const changePage=(next:Page)=>{setPage(next);setModal(null);setWarning('');window.scrollTo({top:0,behavior:'smooth'})};
   const begin=(next:Page='setup')=>{if(!username){setAuthReturn(next);setAuthMode('login');changePage('auth');return}changePage(next)};
-  const logout=()=>{setUsername('');setMatch(null);setUsed([]);changePage('home')};
+  const logout=async()=>{
+    try {await apiAuth.logout();setCurrentAccount(null);setUsername('');setMatch(null);setUsed([]);changePage('home')}
+    catch {setWarning('تعذّر تسجيل الخروج من الخادم. تحقق من الاتصال وحاول مرة ثانية.')}
+  };
   const openAuth=(mode:'login'|'register',returnPage:Page='details')=>{setAuthMode(mode);setAuthReturn(returnPage);setAuthError('');setForm({name:'',username:'',password:''});changePage('auth')};
   const submitAuth=async(e:FormEvent)=>{
-    e.preventDefault();setAuthError('');const uname=form.username.trim().toLowerCase();const password=form.password;
-    if(uname.length<3||password.length<6){setAuthError('اسم المستخدم ٣ أحرف على الأقل وكلمة المرور ٦ أحرف على الأقل.');return}
-    if(authMode==='register'){
-      if(form.name.trim().length<2){setAuthError('اكتب اسمك حتى نرحّب فيك.');return}
-      if(accounts.some(x=>x.username===uname)){setAuthError('اسم المستخدم مستخدم. جرّب اسمًا ثانيًا.');return}
-      try{const salt=makeId();const digest=await digestPassword(password,salt);setAccounts(xs=>[...xs,{username:uname,name:form.name.trim(),salt,digest}]);setUsername(uname);changePage(authReturn==='details'?'home':authReturn)}catch{setAuthError('المتصفح لا يدعم التحقق الآمن في هذا السياق. افتح الموقع عبر HTTPS.')}
-    }else{
-      const user=accounts.find(a=>a.username===uname);if(!user){setAuthError('اسم المستخدم أو كلمة المرور غير صحيح.');return}
-      try{const digest=await digestPassword(password,user.salt);if(digest!==user.digest){setAuthError('اسم المستخدم أو كلمة المرور غير صحيح.');return}setUsername(uname);changePage(authReturn==='details'?'home':authReturn)}catch{setAuthError('تعذّر تسجيل الدخول في هذا المتصفح.')}
+    e.preventDefault();
+    if(authPending)return;
+    setAuthError('');
+    const uname=form.username.trim().toLowerCase(), password=form.password;
+    if(!/^[a-z0-9_.-]{3,50}$/.test(uname)){
+      setAuthError('اسم المستخدم لازم يكون ٣ أحرف أو أكثر بالإنجليزي، ويمكن استخدام الأرقام والنقطة والشرطة.');return;
     }
+    if(authMode==='register' && password.length<10){setAuthError('كلمة المرور للحساب الحقيقي لازم تكون ١٠ أحرف على الأقل.');return}
+    if(authMode==='register' && !form.name.trim()){setAuthError('اكتب اسمك حتى نرحّب فيك.');return}
+    setAuthPending(true);
+    try {
+      const result: {user:ApiUser}=authMode==='register'
+        ? await apiAuth.register({displayName:form.name.trim(),username:uname,password})
+        : await apiAuth.login({username:uname,password});
+      setCurrentAccount({username:result.user.username,name:result.user.displayName});
+      setUsername(result.user.username);
+      setForm({name:'',username:'',password:''});
+      changePage(authReturn==='details'?'home':authReturn);
+    } catch(error) {
+      if(error instanceof ApiRequestError){
+        const messages:Record<string,string>={
+          ALREADY_EXISTS:'اسم المستخدم مستخدم. جرّب اسمًا ثانيًا.',
+          INVALID_CREDENTIALS:'اسم المستخدم أو كلمة المرور غير صحيح.',
+          VALIDATION_ERROR:'تأكد من البيانات المدخلة وحاول مرة ثانية.',
+          MIGRATION_REQUIRED:'خادم الحسابات مش جاهز بعد. لازم تشغيل ترحيلات قاعدة البيانات.',
+        };
+        setAuthError(messages[error.code] || 'تعذّر إنشاء الحساب أو تسجيل الدخول. حاول مجددًا.');
+      } else setAuthError('خادم الحسابات غير متصل بالموقع حاليًا. ما تم حفظ أي حساب جديد؛ تحقق من تشغيل الـAPI.');
+    } finally {setAuthPending(false)}
   };
   const changeCount=(n:4|6|8)=>{setChosenCount(n);setChosenCategories(v=>v.slice(0,n))};
   const toggleCategory=(id:string)=>{if(availableGames(id,used)===0)return;setChosenCategories(v=>v.includes(id)?v.filter(x=>x!==id):v.length<chosenCount?[...v,id]:v)};
@@ -146,7 +172,7 @@ function App(){
     </div></header>}
   function GameCard({game}:{game:typeof GAMES[number]}){return <article className={`game-card ${!game.enabled?'coming-card':''}`}><button className="card-media" onClick={()=>game.enabled?changePage('details'):setWarning('هاي اللعبة رح تنضاف قريبًا. حاليًا سين جيم جاهزة للتجربة.')}><img src={game.image} alt={`صورة ${game.name}`} /><span className={`status-tag ${game.enabled?'available':'coming'}`}>{game.tag}</span></button><div className="card-body"><h3>{game.name}</h3><p>{game.description}</p><AppButton variant={game.enabled?'primary':'outline'} disabled={!game.enabled} onClick={()=>changePage('details')}>{game.enabled?'استكشف اللعبة':'قريبًا'} <Icon name="arrow" size={17}/></AppButton></div></article>}
   function Home(){const focus=GAMES[heroIndex];return <main><section className="home-hero container"><div className="hero-copy"><span className="eyebrow">🎲 ألعاب تجمعنا</span><h1>جمعتكم أحلى <span>مع بلّشها!</span></h1><p>مكان واحد للألعاب والتحديات بين الأصدقاء. اختار اللعبة، جهّز فريقك، وخلّ الحماس يبدأ!</p><div className="hero-actions"><AppButton onClick={()=>document.getElementById('games')?.scrollIntoView({behavior:'smooth'})}>اكتشف الألعاب <Icon name="arrow"/></AppButton><AppButton variant="outline" onClick={()=>setModal('how')}>كيف تبدأ؟ <Icon name="play"/></AppButton></div><div className="hero-features"><span>✓ تصفّح بدون حساب</span><span>✓ فريقان وتحديات</span><span>✓ ألعاب مختلفة</span></div></div><div className="hero-art"><div className="hero-orbit orbit-one"/><div className="hero-orbit orbit-two"/><img key={focus.id} src={focus.image} alt={`مشهد لعبة ${focus.name}`} className="hero-image"/><div className="hero-float">{focus.name}</div><div className="hero-dots">{GAMES.map((g,i)=><button key={g.id} className={i===heroIndex?'active':''} onClick={()=>setHeroIndex(i)} aria-label={`عرض ${g.name}`}/>)}</div></div></section><section id="games" className="container games-section"><div className="section-heading"><div><span className="small-overline">اختار عالمك</span><h2>الألعاب المتاحة</h2><p>كل لعبة إلها تجربتها الخاصة. بنبدأ بسين جيم وبنكمل باقي الألعاب بعدها.</p></div><span className="subtle-chip"><Icon name="game"/> ٤ ألعاب</span></div><div className="games-grid">{GAMES.map(g=><GameCard key={g.id} game={g}/>)}</div></section><section className="container how-banner"><div><span className="small-overline">سهلة وسريعة</span><h2>بلّش اللعب بثلاث خطوات</h2><p>تصفح الألعاب، سجّل دخول لما تقرر تبدأ، وجهّز فريقين.</p></div><AppButton variant="outline" onClick={()=>setModal('how')}>اعرف كيف تلعب <Icon name="arrow"/></AppButton></section></main>}
-  function Auth(){return <main className="container auth-layout"><div className="auth-visual"><div className="auth-visual-overlay"><span className="eyebrow">بلّشها*</span><h2>كل جمعة إلها حكاية!</h2><p>حساب واحد لكل الألعاب، وذكريات أحلى مع أصحابك.</p></div><img src={GAMES[heroIndex].image} alt="عرض ألعاب بلّشها"/></div><section className="auth-card"><span className="small-overline">أهلًا فيك</span><h1>{authMode==='login'?'تسجيل الدخول':'إنشاء حساب جديد'}</h1><p>{authMode==='login'?'ارجع للمكان اللي وقفت عنده.':'ابدأ بحساب بسيط، بدون إيميل أو خدمات خارجية.'}</p><form onSubmit={submitAuth} className="auth-form">{authMode==='register'&&<label>الاسم الظاهر<input autoComplete="name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="مثلاً: حمزة" required/></label>}<label>اسم المستخدم<input autoComplete="username" value={form.username} onChange={e=>setForm({...form,username:e.target.value})} placeholder="اسم المستخدم" required/></label><label>كلمة المرور<div className="password-wrap"><input type={showPassword?'text':'password'} autoComplete={authMode==='login'?'current-password':'new-password'} value={form.password} onChange={e=>setForm({...form,password:e.target.value})} placeholder="كلمة المرور" required/><button type="button" onClick={()=>setShowPassword(v=>!v)} aria-label="إظهار كلمة المرور"><Icon name="eye"/></button></div></label>{authError&&<p className="alert alert-error" role="alert">{authError}</p>}<AppButton type="submit" className="wide-btn">{authMode==='login'?'تسجيل الدخول':'إنشاء الحساب'} <Icon name="arrow" size={19}/></AppButton></form><p className="switch-auth">{authMode==='login'?'ما عندك حساب؟':'عندك حساب؟'} <button onClick={()=>{setAuthError('');setAuthMode(authMode==='login'?'register':'login')}}>{authMode==='login'?'إنشاء حساب':'تسجيل الدخول'}</button></p><div className="demo-disclaimer"><Icon name="circleInfo"/> هذه نسخة تجريبية. الحسابات محفوظة في هذا المتصفح فقط، وليست خدمة تسجيل عامة.</div></section></main>}
+  function Auth(){return <main className="container auth-layout"><div className="auth-visual"><div className="auth-visual-overlay"><span className="eyebrow">بلّشها*</span><h2>كل جمعة إلها حكاية!</h2><p>حساب واحد لكل الألعاب، وذكريات أحلى مع أصحابك.</p></div><img src={GAMES[heroIndex].image} alt="عرض ألعاب بلّشها"/></div><section className="auth-card"><span className="small-overline">أهلًا فيك</span><h1>{authMode==='login'?'تسجيل الدخول':'إنشاء حساب جديد'}</h1><p>{authMode==='login'?'ارجع للمكان اللي وقفت عنده.':'ابدأ بحساب بسيط، بدون إيميل أو خدمات خارجية.'}</p><form onSubmit={submitAuth} className="auth-form">{authMode==='register'&&<label>الاسم الظاهر<input autoComplete="name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="مثلاً: حمزة" required/></label>}<label>اسم المستخدم<input autoComplete="username" value={form.username} onChange={e=>setForm({...form,username:e.target.value})} placeholder="اسم المستخدم" required/></label><label>كلمة المرور<div className="password-wrap"><input type={showPassword?'text':'password'} autoComplete={authMode==='login'?'current-password':'new-password'} value={form.password} onChange={e=>setForm({...form,password:e.target.value})} placeholder="كلمة المرور" required/><button type="button" onClick={()=>setShowPassword(v=>!v)} aria-label="إظهار كلمة المرور"><Icon name="eye"/></button></div></label>{authError&&<p className="alert alert-error" role="alert">{authError}</p>}<AppButton type="submit" disabled={authPending} className="wide-btn">{authPending?'جارٍ الاتصال بالخادم...':authMode==='login'?'تسجيل الدخول':'إنشاء الحساب'} <Icon name="arrow" size={19}/></AppButton></form><p className="switch-auth">{authMode==='login'?'ما عندك حساب؟':'عندك حساب؟'} <button onClick={()=>{setAuthError('');setAuthMode(authMode==='login'?'register':'login')}}>{authMode==='login'?'إنشاء حساب':'تسجيل الدخول'}</button></p><div className="demo-disclaimer"><Icon name="circleInfo"/> الحسابات الجديدة تُسجّل عبر الـBackend فقط. إذا لم يكن الخادم متصلًا فلن يتم إنشاء حساب؛ الحسابات التجريبية القديمة غير منقولة تلقائيًا.</div></section></main>}
   function CategoryTile({cat,mode='browse',selected=false}:{cat:Category;mode?:'browse'|'choose';selected?:boolean}){const remaining=account?availableGames(cat.id,used):null,disabled=mode==='choose'&&remaining===0,atMax=mode==='choose'&&chosenCategories.length>=chosenCount&&!selected;return <button className={`category-tile ${selected?'selected':''} ${disabled?'disabled':''}`} disabled={disabled||atMax} onClick={()=>mode==='choose'?toggleCategory(cat.id):begin('setup')}><div className="cat-illustration" style={{background:cat.tint}}><span>{cat.icon}</span>{mode==='choose'&&<b className="cat-check">{selected?<Icon name="check" size={15}/>:disabled?'×':'+'}</b>}</div><div className="cat-name">{cat.name}</div><div className="cat-remaining">{remaining===null?'عدد المباريات بعد تسجيل الدخول':remaining===0?'غير متاح · ٠ مباريات':`${remaining} مباراة متبقية`}</div></button>}
   function CategorySections({mode}:{mode:'browse'|'choose'}){return <div className="categories-sections">{(['كرة القدم','مجالات أخرى'] as const).map(group=>{const cats=CATEGORIES.filter(c=>c.group===group&&(mode==='choose'||c.name.toLowerCase().includes(categoryQuery.trim().toLowerCase())));return <section key={group} className="category-section"><div className="category-heading"><h3>{group}</h3><span>{cats.length} تصنيفات <small>· أمثلة تجريبية</small></span></div><div className="categories-grid">{cats.map(cat=><CategoryTile key={cat.id} cat={cat} mode={mode} selected={chosenCategories.includes(cat.id)}/>)}</div></section>})}</div>}
   function Details(){return <main className="container details-page"><div className="breadcrumb"><button onClick={()=>changePage('home')}>الألعاب</button><span>/</span>سين جيم</div><div className="details-hero"><img src="/art/seen-jeem.webp" alt="مشهد ثلاثي الأبعاد لبطاقات أسئلة سين جيم"/><div className="details-copy"><span className="eyebrow">تحدّي أسئلة للفريقين</span><h1>سين جيم</h1><p>اختاروا تصنيفاتكم، شكّلوا فريقين، واجمعوا النقاط مع بعض. تقدروا تتصفحوا التصنيفات بدون تسجيل.</p><div className="hero-actions"><AppButton onClick={()=>begin('setup')}>ابدأ اللعب <Icon name="arrow"/></AppButton><AppButton variant="outline" onClick={()=>setModal('how')}>كيف تنلعب؟</AppButton></div></div></div><div className="facts-row"><div><strong>فريقان</strong><span>منافسة جماعية</span></div><div><strong>٢٠٠ / ٤٠٠ / ٦٠٠</strong><span>مستويات النقاط</span></div><div><strong>٥ وسائل</strong><span>كل فريق يختار ٣</span></div></div><div className="section-heading"><div><h2>استكشف التصنيفات</h2><p>هذه تصنيفات تجريبية للمعاينة. التصنيفات الرسمية بنحددها لاحقًا.</p></div></div><div className="search-box"><Icon name="search"/><input value={categoryQuery} onChange={e=>setCategoryQuery(e.target.value)} placeholder="ابحث عن تصنيف" aria-label="ابحث عن تصنيف"/></div><CategorySections mode="browse"/><div className="notice"><Icon name="circleInfo"/><span>عدد المباريات يعتمد على حساب اللاعب والأسئلة التي استخدمها. البيانات المعروضة تجريبية.</span></div></main>}

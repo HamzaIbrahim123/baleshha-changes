@@ -1,5 +1,7 @@
 # Baleshha Backend — Node.js + Express + TypeScript + Neon
 
+> **Neon database status — 2026-11-15:** Migrations 001 and 002 were applied to the `baleshha` database on Neon project `small-bar-10765505` (14 tables verified). The API is **not deployed**, and this repository's React frontend auth integration is code-only until backend HTTPS hosting and same-origin routing are configured. No real account has been registered by the website yet.
+
 **Backend implementation bundle** (not deployed). This bundle belongs in `HamzaIbrahim123/baleshha-changes` only. Do not copy it over the root `HamzaIbrahim123/baleshha` repository until an explicit deployment/integration step is approved.
 
 ## What works when Neon migrations are applied
@@ -15,7 +17,7 @@
 
 **No real categories or questions added.** With empty question bank, the `POST /api/matches` endpoint correctly returns HTTP 409 `QUESTION_BANK_NOT_READY`, rather than inventing questions. Actual original Seen Jeem help-tool wording and edge cases must be confirmed before production; the current implementations of `pit` and `trap` encode the user-agreed baseline. `call_friend`, `two_answers`, and `rest` are tracked but have no automated restrictions on spoken conversation. Other game rules will be separate modules.
 
-The **existing React demo frontend is NOT connected** to this API and still uses its local demo state. Integration is a separate step. This backend has **NOT been deployed or connected to a live database credential** in this bundle. Do not mistake the UI demo for production authorization or question tracking.
+The **existing React demo frontend is NOT connected** to this API and still uses its local demo state. Integration is a separate step. This backend has **NOT been deployed as a running HTTPS service** in this bundle. The database migrations were applied separately on Neon. Do not mistake the UI demo for production authorization or question tracking.
 
 ## Setup
 
