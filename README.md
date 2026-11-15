@@ -1,36 +1,40 @@
 # بلّشها — Baleshha Changes
 
-This is the **source-and-changes** repository for the Baleshha games website. It contains actual files at their correct paths, **not** under a `bundles/` directory. The original [baleshha](https://github.com/HamzaIbrahim123/baleshha) repository is intentionally not modified.
+**كل تعديل في فولدر مستقل ظاهر في الصفحة الرئيسية.** This repo contains numbered change folders (not one merged project at the root).
 
-## Project files (direct paths)
-
-| Path | Purpose |
+| Folder | What's inside |
 |---|---|
-| `src/`, `index.html`, `package.json`, `vite.config.ts`, `tsconfig.json` | React + TypeScript + Vite frontend |
-| `public/art/` | Four game illustrations |
-| `backend/` | Node.js + Express + TypeScript API and its tests |
-| `backend/migrations/` | **Canonical backend** PostgreSQL schema migrations, pending application |
-| `database/drafts/` | Historical initial Neon schema proposal; **do not apply together with backend migration 001** |
-| `.figma/make/` | Figma Make project scripts |
-| `BUNDLE_01.md`, `BUNDLE_02.md`, `BUNDLE_03.md`, `BUNDLE_04.md` | Numbered changes, exact file paths and status |
-| `BUNDLE_03_BACKEND.zip` | Optional downloadable archive of backend source |
-| `docs/legacy/` | Archived notes and manifests from the previous folder layout |
+| [Bundle 1](Bundle%201/) | Frontend: React/Vite website, Figma Make scripts, four game visuals |
+| [Bundle 2](Bundle%202/) | Initial Neon database draft |
+| [Bundle 3](Bundle%203/) | Node.js/Express/TypeScript backend, migrations, tests, ZIP |
+| [Bundle 4](Bundle%204/) | Repository organization change and earlier notes |
 
-## Change convention — keep this for future changes
+Each Bundle folder keeps files under their **original relative path** so the changed files can be copied into a project without guessing where they go.
 
-**Every new change is Bundle 05, Bundle 06, ...**, in sequence.
+Example:
+```text
+Bundle 1/
+  src/App.tsx
+  src/data.ts
+  public/art/seen-jeem.webp
+  package.json
 
-1. Edit/add/delete real project files at their **normal root-relative paths**, such as `src/App.tsx` or `backend/src/routes.ts`.
-2. Add a root-level `BUNDLE_05.md` (then `BUNDLE_06.md`, etc.) listing each changed path and whether it was added, modified, or deleted, and its purpose.
-3. Make a Git commit named `Bundle 05 — ...` so Git history preserves that change; never create another `bundles/` wrapper directory.
-4. Push changes **only to `HamzaIbrahim123/baleshha-changes`**, unless explicitly instructed otherwise.
+Bundle 2/
+  database/drafts/001_neon_schema_draft.sql
 
-## Run locally
+Bundle 3/
+  backend/src/routes.ts
+  backend/migrations/001_initial_schema.sql
 
-- Frontend: `npm install && npm run dev`
-- Backend: `cd backend && npm install && npm run dev`
-- Backend setup/migrations: read [backend/README.md](backend/README.md), set a **private** server-side `backend/.env` from `backend/.env.example` before running migrations.
+Bundle 4/
+  README.md
+```
 
-**Status:** Source is a working foundation, not a verified production deployment. The React frontend still uses local demo state and is **not wired to the API**. No vetted question bank is included. The Neon database was created, but migrations were **not applied** in this repository reorganization. Never commit tokens, credentials or a Neon connection URL.
+## From now on
+- Every new set of changes gets a **NEW root folder**: `Bundle 5/`, `Bundle 6/`, and so on.
+- Put **only added or changed files** inside that folder using their real intended project paths. Add `README.md` in the same folder documenting changed paths and how to apply them.
+- **Do not** create another `bundles/` wrapper or scatter `BUNDLE_XX.md` documents at the root.
+- Upload to **this changes repository only**; the original [baleshha](https://github.com/HamzaIbrahim123/baleshha) repository remains unchanged unless explicitly requested.
+- Do not include credentials. Current frontend uses local demo data; backend and Neon migration are not yet deployed or integrated. Questions will be provided later.
 
-Design source: https://www.figma.com/design/F8QbCCsYhe27xaDWFygUlK/Untitled?node-id=127-140
+[Approved Figma designs](https://www.figma.com/design/F8QbCCsYhe27xaDWFygUlK/Untitled?node-id=127-140)
