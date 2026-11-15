@@ -1,0 +1,107 @@
+{
+  "title": "Bundle 5 — exact safe delta against baleshha-main.zip",
+  "baseline": "baleshha-main.zip",
+  "original_file_count": 37,
+  "frontend": {
+    "identical": 17,
+    "added": 0,
+    "config_differences_excluded": [
+      ".gitattributes",
+      ".gitignore",
+      "vite.config.ts"
+    ]
+  },
+  "applied_changes": [
+    {
+      "path": "backend/.env.example",
+      "change": "added",
+      "blob_sha1": "b68322227bdf32e9f9bf22b3b19c9de61f65d801"
+    },
+    {
+      "path": "backend/.gitignore",
+      "change": "added",
+      "blob_sha1": "9de5727b44d8695dfba3e178c539098edcaa6fea"
+    },
+    {
+      "path": "backend/README.md",
+      "change": "added",
+      "blob_sha1": "7b3683d334a260e0c5721fc364bedd84aa6fc1cc"
+    },
+    {
+      "path": "backend/migrations/001_initial_schema.sql",
+      "change": "added",
+      "blob_sha1": "e1571fbe0c924b8aca832ad9239631aa0fe0a083"
+    },
+    {
+      "path": "backend/migrations/002_backend_support.sql",
+      "change": "added",
+      "blob_sha1": "599d93b8fd46711fe7adff9dea84ca603373d6ba"
+    },
+    {
+      "path": "backend/package.json",
+      "change": "added",
+      "blob_sha1": "2622a808982b999580a14e19e553e09ad851d55d"
+    },
+    {
+      "path": "backend/src/app.ts",
+      "change": "added",
+      "blob_sha1": "7f55495848d7cdf9d6f88930d39888602e3bc419"
+    },
+    {
+      "path": "backend/src/auth.ts",
+      "change": "added",
+      "blob_sha1": "62a5826885a64a1fad9eac71b7ca3b78f0b2f83a"
+    },
+    {
+      "path": "backend/src/config.ts",
+      "change": "added",
+      "blob_sha1": "a48f818e90d17cbc8b11994f0bb718d2587cd30a"
+    },
+    {
+      "path": "backend/src/db.ts",
+      "change": "added",
+      "blob_sha1": "2e9eb55601c71e098a768f1f0cdfcfddf02b042e"
+    },
+    {
+      "path": "backend/src/errors.ts",
+      "change": "added",
+      "blob_sha1": "86cb6a7187a67eca479c23b0cdad7d97be4263d2"
+    },
+    {
+      "path": "backend/src/migrate.ts",
+      "change": "added",
+      "blob_sha1": "342a0068e6815149975f63adbc8850fb3504ee09"
+    },
+    {
+      "path": "backend/src/routes.ts",
+      "change": "added",
+      "blob_sha1": "49516b56d78c15d2c919452f0a55b7cd4c9970dd"
+    },
+    {
+      "path": "backend/src/rules.ts",
+      "change": "added",
+      "blob_sha1": "76445ccb97e143e370e53fe41af525b4da2958ee"
+    },
+    {
+      "path": "backend/src/server.ts",
+      "change": "added",
+      "blob_sha1": "e39ee009150ea003d00a2eee36134a169a0603c5"
+    },
+    {
+      "path": "backend/tests/rules.test.ts",
+      "change": "added",
+      "blob_sha1": "2521eed655660f068c3ef5212486f778eb94354c"
+    },
+    {
+      "path": "backend/tsconfig.json",
+      "change": "added",
+      "blob_sha1": "fd258805b5222c12cce658ec7f3d0f988264cfb5"
+    }
+  ],
+  "notes": [
+    "Only added backend source is included.",
+    "Bundle 2 draft Neon SQL is not included; only canonical backend migrations in this bundle.",
+    "This does not deploy a server or connect frontend to Neon.",
+    "Do not overwrite Figma Make platform Vite configuration."
+  ]
+}
